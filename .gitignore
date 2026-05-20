@@ -1,0 +1,31 @@
+# Database
+db.sqlite3
+
+# Virtual environment
+restaurant_env/ 
+
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+
+
+# Envirenment variables
+.env
+
+# Static files
+staticfiles/
+
+
+# VS Code settings
+.vscode/
+
+#Django migration files
+migrations/
+
+# core/migrations/
+
+#OS files
+.DS_Store
+Thumbs.db
+
