@@ -7,6 +7,8 @@ from .serializers import (CategorySerializer, MenuItemSerializer, TableSerialize
                           ReservationSerializer, OrderSerializer, OrderItemSerializer,
                           InventorySerializer, PaymentSerializer)
 
+# Logic and Operations for handling API requests related to my restaurant system.
+
 
 # ─── A bit of explanation for better understanding ────────────────────────────────────────────────
 # timezone     → Django's way of handling time. Always use this instead of

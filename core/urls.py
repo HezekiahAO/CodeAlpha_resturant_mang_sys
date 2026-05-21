@@ -1,3 +1,5 @@
+# Routing requests to the appropriate viewsets based on URL patterns.(The right view)
+
 from rest_framework.routers import DefaultRouter
 # WHY DefaultRouter?
 # A router is a special Django REST Framework tool that

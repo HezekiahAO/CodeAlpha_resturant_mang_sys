@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import Category, MenuItem, Table, Reservation, Order, OrderItem, Inventory, Payment
 
 
+# Translation to/from JSON
+
+
 # ─── MENU ───────────────────────────────────────────────
 class CategorySerializer(serializers.ModelSerializer):
     # Why ModelSerializer? It automatically generates fields

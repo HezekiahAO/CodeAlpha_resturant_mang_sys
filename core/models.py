@@ -1,5 +1,8 @@
 from django.db import models
-                                                                # 6 Core Models for Restaurant Management System
+                                   
+                                                         # 6 Core Models for Restaurant Management System
+
+# Data Structure and Relationships:
 # ─── 1. MENU ────────────────────────────────────────────
 class Category(models.Model):
     name = models.CharField(max_length=100)
@@ -12,7 +15,7 @@ class MenuItem(models.Model):
     name        = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     price       = models.DecimalField(max_digits=8, decimal_places=2)
-    category    = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)
+    category    = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)   #  allows menu items without a category  I got a  category = null  when i ran this
     is_available = models.BooleanField(default=True)
 
     def __str__(self):
@@ -69,7 +72,10 @@ class Order(models.Model):
     created_at  = models.DateTimeField(auto_now_add=True)
     updated_at  = models.DateTimeField(auto_now=True)
 
-    def get_total(self):
+    def get_total(self) :
+
+# Total calculation by summing subtotals of all order items:
+
         return sum(item.get_subtotal() for item in self.items.all())     # type: ignore
 
     def __str__(self):
