@@ -260,6 +260,26 @@ class OrderViewSet(viewsets.ModelViewSet):
                 quantity=quantity
             )
 
+            if menu_item.inventory:
+
+                inventory = menu_item.inventory
+                
+                if inventory.quantity >= quantity:
+                    return Response(
+                    {'error': f'Not enough stock for {menu_item.name}. Available: {inventory.quantity} {inventory.unit}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+
+
+                inventory.quantity -= quantity
+                inventory.save()
+                # WHY update inventory here?
+                # This is where we "consume" the ingredients from the inventory
+
+                if inventory.is_low():
+                    print(f"Low stock alert: {inventory.name} is down to {inventory.quantity} {inventory.unit}")
+
         table.status = 'occupied'
         table.save()
         # WHY mark as occupied here?
@@ -279,7 +299,9 @@ class OrderViewSet(viewsets.ModelViewSet):
     # We're not replacing the whole order, just changing one field.
 
     def update_status(self, request, pk=None):
-        # WHY pk=None?
+        # WHY pk=None?   
+        # # Wants to move a order through different stages (pending → preparing → served → completed)
+        # 
         # pk = primary key = the ID in the URL (/orders/5/update_status/)
         # Django passes it here automatically. We default it to None
         # as a safety measure in case it's somehow not provided.
