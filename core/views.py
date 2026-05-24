@@ -6,6 +6,10 @@ from .models import Category, MenuItem, Table, Reservation, Order, OrderItem, In
 from .serializers import (CategorySerializer, MenuItemSerializer, TableSerializer,
                           ReservationSerializer, OrderSerializer, OrderItemSerializer,
                           InventorySerializer, PaymentSerializer)
+from django.db.models import Sum, Count
+# Sum   → adds up values across multiple rows
+# Count → counts how many rows match a condition
+# I am using these for calculating totals and generating reports for total sales and popular menu items.
 
 # Logic and Operations for handling API requests related to my restaurant system.
 
@@ -261,14 +265,13 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
             if menu_item.inventory:
-
                 inventory = menu_item.inventory
+                print(f"DEBUG → inventory quantity: {inventory.quantity}")
+                print(f"DEBUG → ordered quantity: {quantity}")
+                print(f"DEBUG → comparison: {inventory.quantity} < {quantity} = {inventory.quantity < quantity}")
                 
-                if inventory.quantity >= quantity:
-                    return Response(
-                    {'error': f'Not enough stock for {menu_item.name}. Available: {inventory.quantity} {inventory.unit}'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                if inventory.quantity < quantity:
+                    return Response(...)
 
 
 
@@ -413,3 +416,164 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(payment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+# ════════════════════════════════════════════════════════════════════════════
+# ─── REPORTING VIEWS ────────────────────────────────────────────────────────
+# ════════════════════════════════════════════════════════════════════════════
+
+from rest_framework.views import APIView
+# WHY APIView instead of ModelViewSet?
+# ModelViewSet is for CRUD operations on a specific model.
+# Reporting doesn't create or update anything — it just
+# READS and CALCULATES across multiple models at once.
+# APIView gives us a clean blank slate to write custom logic
+# without any CRUD assumptions built in.
+
+class ReportView(APIView):
+
+    def get(self, request):
+        # WHY one GET method for all reports?
+        # Reports are all READ operations — no creating, no updating.
+        # GET is the correct HTTP method for fetching information.
+        # We'll use query parameters to specify WHICH report we want.
+        # Example: /api/reports/?type=daily_sales&date=2026-05-21
+
+        report_type = request.query_params.get('type')
+        # WHY query_params and not request.data?
+        # request.data → reads the REQUEST BODY (used in POST/PATCH)
+        # request.query_params → reads the URL parameters after ?
+        # Example URL: /api/reports/?type=daily_sales
+        # request.query_params.get('type') → returns 'daily_sales'
+        # GET requests carry data in the URL, not the body.
+
+        if not report_type:
+            # WHY validate report_type early?
+            # Fail fast principle again — if no report type is
+            # specified we have no idea what to calculate.
+            # Return helpful message telling client what's available.
+            return Response({
+                'error': 'Please specify a report type',
+                'available_reports': [
+                    'daily_sales',
+                    'most_ordered',
+                    'stock_alerts'
+                ]
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+        # ─── REPORT 1: DAILY SALES ──────────────────────────────
+        if report_type == 'daily_sales':
+            date = request.query_params.get('date')
+            # WHY get date from query_params?
+            # We need to know WHICH day to report on.
+            # Client sends: /api/reports/?type=daily_sales&date=2026-05-21
+
+            if not date:
+                return Response(
+                    {'error': 'Please provide a date. Format: YYYY-MM-DD'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            payments = Payment.objects.filter(
+                status='paid',
+                paid_at__date=date
+                # WHY paid_at__date?
+                # paid_at is a DateTimeField storing full timestamp:
+                # "2026-05-21T17:49:27.878196Z"
+                # paid_at__date extracts JUST the date part: "2026-05-21"
+                # The double underscore __ is Django's way of doing
+                # lookups on fields and their properties.
+                # This is called a "field lookup" — very powerful Django feature.
+            )
+
+            total_revenue = payments.aggregate(Sum('amount'))['amount__sum'] or 0
+            # WHY aggregate(Sum('amount'))?
+            # aggregate() runs a calculation across ALL matching rows.
+            # Sum('amount') adds up all the amount values.
+            # Returns: {'amount__sum': 90.00}
+            # ['amount__sum'] extracts just the number.
+            # or 0 handles the case where no payments exist that day
+            # — without it we'd get None instead of 0.
+
+            return Response({
+                'date': date,
+                'total_orders': payments.count(),
+                # WHY .count()?
+                # counts how many payment rows matched our filter.
+                # = how many orders were completed that day.
+                'total_revenue': total_revenue,
+                'payments': PaymentSerializer(payments, many=True).data
+                # WHY include full payments list?
+                # So the owner can see the breakdown, not just the total.
+            })
+
+
+        # ─── REPORT 2: MOST ORDERED ITEMS ───────────────────────
+        elif report_type == 'most_ordered':
+            top_items = OrderItem.objects.values(
+                'menu_item__name',
+                # WHY menu_item__name and not just menu_item?
+                # menu_item alone would give us the ID number.
+                # menu_item__name follows the ForeignKey relationship
+                # and gets the actual NAME from MenuItem table.
+                # Double underscore __ = "follow this relationship"
+                # This is Django's way of doing SQL JOINs automatically.
+                'menu_item__price'
+            ).annotate(
+                total_ordered=Sum('quantity')
+                # WHY annotate()?
+                # annotate() adds a CALCULATED field to each row.
+                # total_ordered = sum of ALL quantities for each menu item
+                # across ALL orders ever placed.
+                # Example result:
+                # {"menu_item__name": "Jollof Rice", "total_ordered": 10}
+            ).order_by('-total_ordered')
+            # WHY -total_ordered?
+            # order_by() sorts the results.
+            # The minus sign - means DESCENDING order.
+            # So most ordered items appear first.
+            # Without - it would sort ascending (least ordered first).
+
+            return Response({
+                'most_ordered_items': list(top_items)
+                # WHY list()?
+                # top_items is a Django QuerySet object.
+                # Response() needs a plain Python list or dict.
+                # list() converts it to something JSON serializable.
+            })
+
+
+        # ─── REPORT 3: STOCK ALERTS ─────────────────────────────
+        elif report_type == 'stock_alerts':
+            all_inventory = Inventory.objects.all()
+            low_items = [item for item in all_inventory if item.is_low()]
+            # WHY list comprehension again?
+            # Same reason as InventoryViewSet.low_stock() —
+            # is_low() is a Python method, not a database column.
+            # We filter in Python after fetching from DB.
+
+            return Response({
+                'low_stock_count': len(low_items),
+                # WHY len()?
+                # low_items is a plain Python list now (not a QuerySet)
+                # so we use len() instead of .count()
+                # len() = Python built in for counting list items
+                # .count() = Django QuerySet method
+                'low_stock_items': InventorySerializer(low_items, many=True).data
+            })
+
+
+        # ─── INVALID REPORT TYPE ────────────────────────────────
+        else:
+            return Response({
+                'error': f'Unknown report type: {report_type}',
+                'available_reports': [
+                    'daily_sales',
+                    'most_ordered',
+                    'stock_alerts'
+                ]
+            }, status=status.HTTP_400_BAD_REQUEST)
+            # WHY this else?
+            # Catches anything that isn't our three valid report types.
+            # If someone sends ?type=banana we tell them exactly
+            # what valid options exist instead of just crashing.
