@@ -17,6 +17,7 @@ class MenuItem(models.Model):
     price       = models.DecimalField(max_digits=8, decimal_places=2)
     category    = models.ForeignKey(Category, on_delete=models.SET_NULL, null=True)   #  allows menu items without a category  I got a  category = null  when i ran this
     is_available = models.BooleanField(default=True)
+    inventory  = models.ForeignKey('Inventory', on_delete=models.SET_NULL, null=True, blank=True)  # optional link to inventory
 
     def __str__(self):
         return self.name

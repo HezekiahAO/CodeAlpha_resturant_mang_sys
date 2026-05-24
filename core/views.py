@@ -194,9 +194,9 @@ class ReservationViewSet(viewsets.ModelViewSet):
 # ─── ORDER VIEWS ────────────────────────────────────────────────────────────
 # ════════════════════════════════════════════════════════════════════════════
 
-class OrderViewSet(viewsets.ModelViewSet):
-    queryset = Order.objects.all()
-    serializer_class = OrderSerializer
+class OrderViewSet(viewsets.ModelViewSet):                              
+    queryset = Order.objects.all() # go to orders table and fetch all records
+    serializer_class = OrderSerializer   # Translate between Order objects and JSON using OrderSerializer
 
     def create(self, request, *args, **kwargs):
         # WHY is this the most complex view?
@@ -208,10 +208,16 @@ class OrderViewSet(viewsets.ModelViewSet):
 
         table_id = request.data.get('table')
         items_data = request.data.get('items', [])
-        # WHY .get('items', [])?
-        # .get() is safer than request.data['items'] because if 'items'
-        # key doesn't exist in the request, .get() returns the default
-        # value [] instead of crashing with a KeyError.
+
+            # Breakdown of what i am doing here:
+            # request.data = the JSON body the client sent us
+            # Think of it as a Python dictionary:
+            # {
+            #     "table": 1,
+            #     "items": [...]
+            # }
+            # .get('table') → look inside that dictionary for the key 'table'
+            # Returns the VALUE → 1
 
         if not items_data:
             # WHY validate early?
@@ -219,22 +225,22 @@ class OrderViewSet(viewsets.ModelViewSet):
             # before doing any database operations. No point creating an
             # Order record if there are no items to put in it.
             return Response(
-                {'error': 'Order must have at least one item'},
+                {'error': 'Order must have at least one item, Kindly make an order with at least one item'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         table = Table.objects.get(id=table_id)
-        # WHY Table.objects.get() and not filter()?
-        # .get() returns EXACTLY ONE object or raises an error.
-        # .filter() returns a queryset (list) even if only one item matches.
-        # Since table IDs are unique, we KNOW we want exactly one — use .get()
-
+        # This is COMPLETELY different!
+        # objects.get() → talks to the DATABASE
+        # id=table_id → find the row WHERE id equals table_id
+        # Returns a TABLE OBJECT from the database, not just the ID number.
+       
         order = Order.objects.create(table=table)
         # WHY create the Order before the OrderItems?
         # OrderItem has a ForeignKey to Order — it NEEDS the order to exist
         # first before it can be linked to it. This is the required sequence.
 
-        for item_data in items_data:
+        for item_data in items_data:        # This loop isn't to validate but to create multiple OrderItem records based on the items in the request.
             # WHY a loop?
             # A customer can order multiple different items.
             # Each item in the request becomes its own OrderItem row in the DB.
