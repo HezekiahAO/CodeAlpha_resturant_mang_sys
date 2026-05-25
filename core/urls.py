@@ -1,10 +1,6 @@
 # Routing requests to the appropriate viewsets based on URL patterns.(The right view)
 
 from rest_framework.routers import DefaultRouter
-from django.urls import path
-from .views import (CategoryViewSet, MenuItemViewSet, TableViewSet,
-                    ReservationViewSet, OrderViewSet, InventoryViewSet,
-                    PaymentViewSet, ReportView)
 # WHY DefaultRouter?
 # A router is a special Django REST Framework tool that
 # AUTOMATICALLY generates all the URLs for our viewsets.
@@ -13,7 +9,7 @@ from .views import (CategoryViewSet, MenuItemViewSet, TableViewSet,
 # 5 URLs per viewset × 6 viewsets = 30 URL patterns manually.
 # DefaultRouter generates all of them with just ONE line per viewset.
 
-from .views import (CategoryViewSet, MenuItemViewSet, ReportView, TableViewSet,
+from .views import (CategoryViewSet, MenuItemViewSet, TableViewSet,
                     ReservationViewSet, OrderViewSet, InventoryViewSet,
                     PaymentViewSet)
 # WHY import views here?
@@ -62,10 +58,10 @@ router.register(r'payments', PaymentViewSet)
 # All CRUD at /payments/
 # Our overridden create() runs when POST /payments/ is called
 
-urlpatterns = router.urls + [   
-    path('reports/', ReportView.as_view()),                                                 # combinig router wuth reports
-]
-# WHY router.urls + [...] ?
-# router.urls = all our existing CRUD endpoints as a list
-# + [...] = we're ADDING our custom report URL to that list
-# Final result = all CRUD endpoints + reports endpoint together
+urlpatterns = router.urls
+# WHY router.urls?
+# This extracts ALL the generated URL patterns from the router
+# into a list called urlpatterns.
+# Django specifically looks for a variable named urlpatterns
+# in urls.py — it MUST be named exactly this.
+# router.urls contains every URL we registered above, fully built.

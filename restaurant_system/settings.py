@@ -13,6 +13,49 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
+from datetime import timedelta
+
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ),
+    # WHY DEFAULT_AUTHENTICATION_CLASSES?
+    # This tells Django REST Framework to use JWT as the
+    # default way to verify WHO is making a request.
+    # Every API request will now look for a JWT token.
+    # Without a valid token = request is rejected.
+
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.IsAuthenticated',
+    ),
+    # WHY DEFAULT_PERMISSION_CLASSES?
+    # IsAuthenticated means every endpoint requires a valid
+    # token by default. No token = no access.
+    # This protects ALL our endpoints in one line instead
+    # of adding protection to each view individually.
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
+    # WHY 8 hours?
+    # A restaurant shift is typically 8 hours.
+    # Token expires when the shift ends — staff must
+    # login again for the next shift. Security best practice.
+
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    # WHY refresh token?
+    # When access token expires, instead of forcing full login
+    # the client can use the refresh token to get a new access token.
+    # Refresh token lasts longer — 1 day in our case.
+
+    'ROTATE_REFRESH_TOKENS': True,
+    # WHY rotate?
+    # Every time a refresh token is used, a NEW one is issued.
+    # The old one becomes invalid immediately.
+    # This prevents token theft — if someone steals your refresh
+    # token and uses it, you get a new one and theirs stops working.
+}
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
