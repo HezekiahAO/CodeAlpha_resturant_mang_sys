@@ -37,17 +37,17 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=8),
-    # WHY 8 hours?
-    # A restaurant shift is typically 8 hours.
+    'ACCESS_TOKEN_LIFETIME': timedelta(hours=1),
+    # WHY 1 hour?
+    # A restaurant shift is typically 1 hour.
     # Token expires when the shift ends — staff must
     # login again for the next shift. Security best practice.
 
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'REFRESH_TOKEN_LIFETIME': timedelta(hours=8),
     # WHY refresh token?
     # When access token expires, instead of forcing full login
     # the client can use the refresh token to get a new access token.
-    # Refresh token lasts longer — 1 day in our case.
+    # Refresh token lasts longer — 8 hours in our case.
 
     'ROTATE_REFRESH_TOKENS': True,
     # WHY rotate?
