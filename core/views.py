@@ -7,6 +7,7 @@ from .serializers import (CategorySerializer, MenuItemSerializer, TableSerialize
                           ReservationSerializer, OrderSerializer, OrderItemSerializer,
                           InventorySerializer, PaymentSerializer)
 from django.db.models import Sum, Count
+from .permissions import IsAdminUser, IsWaiter, IsKitchenStaff, IsAdminOrWaiter, IsAdminOrKitchen
 # Sum   → adds up values across multiple rows
 # Count → counts how many rows match a condition
 # I am using these for calculating totals and generating reports for total sales and popular menu items.
@@ -62,11 +63,14 @@ class CategoryViewSet(viewsets.ModelViewSet):
     # Serializer_class?
     # This tells the viewset WHICH serializer to use when converting
     # data to/from JSON. Serializers are translators from JSON to Pyhton and vise versa.
-
+    permission_classes = [IsAdminUser]
+    # Only admin users can manage categories — regular staff don't need to mess with this.
 
 class MenuItemViewSet(viewsets.ModelViewSet):
     queryset = MenuItem.objects.all()
     serializer_class = MenuItemSerializer
+    permission_classes = [IsAdminOrKitchen]
+    # Admins can manage all menu items, kitchen staff can only view and update availability.
 
     @action(detail=False, methods=['get'])
     # @action?
@@ -104,6 +108,8 @@ class MenuItemViewSet(viewsets.ModelViewSet):
 class TableViewSet(viewsets.ModelViewSet):
     queryset = Table.objects.all()
     serializer_class = TableSerializer
+    permission_classes = [IsAdminOrKitchen]
+    # Admins can manage all tables, kitchen staff can only view and update availability.
 
     @action(detail=False, methods=['get'])
     def available(self, request):
@@ -125,6 +131,8 @@ class TableViewSet(viewsets.ModelViewSet):
 class ReservationViewSet(viewsets.ModelViewSet):
     queryset = Reservation.objects.all()
     serializer_class = ReservationSerializer
+    permission_classes = [IsAdminOrWaiter]
+    # Admins can manage all reservations, waiters can create and view reservations but not delete or update them.
 
     def create(self, request, *args, **kwargs):
         # WHY override create()?
@@ -201,6 +209,8 @@ class ReservationViewSet(viewsets.ModelViewSet):
 class OrderViewSet(viewsets.ModelViewSet):                              
     queryset = Order.objects.all() # go to orders table and fetch all records
     serializer_class = OrderSerializer   # Translate between Order objects and JSON using OrderSerializer
+    permission_classes = [IsAdminOrWaiter]
+    # Admins can manage all orders, waiters can create and view orders but not delete or update them.
 
     def create(self, request, *args, **kwargs):
         # WHY is this the most complex view?
@@ -339,7 +349,26 @@ class OrderViewSet(viewsets.ModelViewSet):
             # in use. We automatically release it so it can be assigned
             # to new customers. This is the system "closing the loop"
             # on the restaurant session that started with a reservation.
-
+    
+    
+    
+    def get_permissions(self):
+        # WHY override get_permissions() instead of just permission_classes?
+        # permission_classes applies ONE rule to ALL actions.
+        # get_permissions() lets us apply DIFFERENT rules per action.
+        # Kitchen can READ orders but only admin/waiter can CREATE them.
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            # WHY these methods?
+            # GET = read data, HEAD = check headers, OPTIONS = check what's allowed
+            # All three are read-only — no data gets changed.
+            return [IsAdminOrKitchen()]
+            # WHY IsAdminOrKitchen for GET?
+            # Kitchen needs to SEE orders to prepare them.
+            # Admin always needs full access.
+        return [IsAdminOrWaiter()]
+        # WHY IsAdminOrWaiter for everything else?
+        # POST, PATCH, DELETE = creating/modifying orders.
+        # Only waiters and admin should do that.
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -349,6 +378,8 @@ class OrderViewSet(viewsets.ModelViewSet):
 class InventoryViewSet(viewsets.ModelViewSet):
     queryset = Inventory.objects.all()
     serializer_class = InventorySerializer
+    permission_classes = [IsAdminOrKitchen]
+    # Admins can manage all inventory and stock levels, kitchen staff can only view and update quantities.
 
     @action(detail=False, methods=['get'])
     def low_stock(self, request):
@@ -372,6 +403,8 @@ class InventoryViewSet(viewsets.ModelViewSet):
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.all()
     serializer_class = PaymentSerializer
+    permission_classes = [IsAdminOrWaiter]
+    # Admins can manage all payments, waiters can create and view payments but not delete
 
     def create(self, request, *args, **kwargs):
         # WHY override create() for payments?
@@ -430,6 +463,8 @@ from rest_framework.views import APIView
 # without any CRUD assumptions built in.
 
 class ReportView(APIView):
+    permission_classes = [IsAdminUser]
+    # Only the restaurant owner (admin) can access these reports — regular staff don't need to see this high-level data.
 
     def get(self, request):
         # WHY one GET method for all reports?
