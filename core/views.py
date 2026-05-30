@@ -8,6 +8,9 @@ from .serializers import (CategorySerializer, MenuItemSerializer, TableSerialize
                           InventorySerializer, PaymentSerializer)
 from django.db.models import Sum, Count
 from .permissions import IsAdminUser, IsWaiter, IsKitchenStaff, IsAdminOrWaiter, IsAdminOrKitchen
+from django.core.exceptions import ObjectDoesNotExist
+from rest_framework.exceptions import ValidationError
+
 # Sum   → adds up values across multiple rows
 # Count → counts how many rows match a condition
 # I am using these for calculating totals and generating reports for total sales and popular menu items.
@@ -369,6 +372,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         # WHY IsAdminOrWaiter for everything else?
         # POST, PATCH, DELETE = creating/modifying orders.
         # Only waiters and admin should do that.
+        
 
 
 # ════════════════════════════════════════════════════════════════════════════
